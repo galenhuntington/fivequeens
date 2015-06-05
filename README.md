@@ -11,6 +11,8 @@ $ cabal install conduit-extra lzma-conduit
 $ ghc --make -O2 query5q.hs
 ```
 
+It may be necessary to install `xz`/`lzma` support.
+
 To query the table, you need the table, which is currently hosted at
 http://www.filedropper.com/fivequeens and is about 48 MiB.  It should
 be in the directory you run the executable from.

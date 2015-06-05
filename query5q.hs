@@ -217,7 +217,7 @@ process fh bs = do
                               then last v : []
                               else 0 : v
                            | (blk', v) <- moves ]
-      _ -> return $ "invalid input"
+      _ -> return "invalid input"
 
 main = do
    args <- getArgs
