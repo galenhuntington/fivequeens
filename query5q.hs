@@ -1,8 +1,8 @@
 {-
    This queries a single DTM50 chess endgame tablebase:
    White having five queens versus Black having a king.
-   It requires the file <fivequeens.gt1>.
-   Currently available at http://www.filedropper.com/fivequeens
+   It requires the file <fivequeens.gt1>, which is
+   currently available at http://www.filedropper.com/fivequeens
 
    Galen Huntington, 2015
 -}
