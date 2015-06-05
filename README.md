@@ -1,6 +1,7 @@
 #  fivequeens
 
-This is the Haskell code for probing the DTM50 table for kqqqqqk.
+This is the Haskell code for probing my compressed DTM50 table for
+kqqqqqk.
 
 I have tried to minimize use of dependencies and language features,
 but it does require Conduit packages.  If you have the Haskell Platform

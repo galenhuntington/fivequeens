@@ -141,7 +141,7 @@ triangle l =
 --  Tables were generated in above order; this flips it around to be in
 --  lexicographic order, to make life harder for myself for no reason.
 --  The constant is 64 choose 5 - 1
-triangle' l = 7624511 - triangle (reverse $ map (63-) l)
+triangle' l = 7624511 - triangle (reverse $ map (0o77-) l)
 
 --  I use an array in the generator for speed, but here it's used once.
 kingcon :: Square -> Int
@@ -181,7 +181,7 @@ process fh bs = do
    let col = BSC.last bs
    --  Wonky but functional indentation.
    --  Not using MultiWayIf since too new....
-   if even (BS.length bs) || any (\x -> x<0 || x>63) squares
+   if even (BS.length bs) || any (\x -> x<0 || x>0o77) squares
    then return "parse failure"
    else if nub squares /= squares
    then return "illegal position (duplicate square)"
