@@ -20,6 +20,7 @@ import System.Exit
 import System.Posix.Env.ByteString (getArgs)
 import Data.List
 import Control.Monad
+import Control.Applicative
 import Data.Bits
 
 --  Not so standard.
