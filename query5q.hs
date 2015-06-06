@@ -205,9 +205,12 @@ process fh bs = do
             else let
                sym = whk == dflip whk && whqs == sort (map dflip whqs)
                query = query' sym
+               blks = kingMoves blk
                moves =
-                  [ (blk', v) | blk' <- kingMoves blk, let v = query blk', v /= [] ]
+                  [ (blk', v) | blk' <- blks, let v = query blk', v /= [] ]
                in case (query blk, moves) of
+                  _  | whk `elem` blks
+                           -> return "illegal position"
                   ([], []) -> return "checkmated"
                   (_,  []) -> return "draw (stalemate)"
                   _        ->
