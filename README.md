@@ -12,7 +12,7 @@ $ cabal install conduit-extra lzma-conduit
 $ ghc --make -O2 query5q.hs
 ```
 
-It may be necessary to install `xz`/`lzma` support.
+It may be necessary to install `xz`/`lzma` libraries for your OS.
 
 To query the table, you need the table, which is currently hosted at
 http://www.filedropper.com/fivequeens and is about 48 MiB.  It should
@@ -29,6 +29,15 @@ $ ./query5q b3a1a2b1f1f2b7b
 mated in 3 for PC=0..94, mated in 5 for PC=95, draw for PC=96..99
 $ runhaskell query5q.hs d4a7b4c7d8e7h3w
 mate in 3 for PC=0..97, mate in 4 for PC=98, draw for PC=99
+```
+
+Optionally, the string of squares may be prefixed by a PC value, in
+which case the game outcome is shown only for that PC.  (The compact
+input format is geared towards automatic querying.)
+
+```Shell
+$ ./query5q 95b3a1a2b1f1f2b7b
+mated in 5
 ```
 
 Note that it will return values for four queens only with White

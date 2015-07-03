@@ -1,8 +1,8 @@
 {-
    This queries a single DTM50 chess endgame tablebase:
    White having five queens versus Black having a king.
-   It requires the file <fivequeens.gt1>, which is
-   currently available at http://www.filedropper.com/fivequeens
+   It requires the file <fivequeens.gt1>.
+   Currently available at http://www.filedropper.com/fivequeens
 
    Galen Huntington, 2015
 -}
@@ -22,6 +22,7 @@ import Data.List
 import Control.Monad
 import Control.Applicative
 import Data.Bits
+import Data.Char (isDigit)
 
 --  Not so standard.
 import Control.Monad.Trans.Resource (runResourceT)
@@ -41,22 +42,27 @@ outcomes :: Array OutcomeCode [Depth]
 outcomes = listArray (0, 16) $
    [] :
    [1] :
-   [0,0,2] :
-   [0,3,2] :
-   [0,4,2] :
-   [0,2] :
-   [0,0,0,0,3] :
-   [0,0,0,4,3] :
-   [0,0,4,4,3] :
-   [0,4,4,4,3] :
-   [0,0,0,5,3] :
-   [0,0,0,3] :
-   [0,0,4,3] :
-   [0,0,3] :
-   [0,4,3] :
-   [0,3] :
-   [0,4,4,3] :   -- only for "the nineteen"
+   [d,d,2] :
+   [d,3,2] :
+   [d,4,2] :
+   [d,2] :
+   [d,d,d,d,3] :
+   [d,d,d,4,3] :
+   [d,d,4,4,3] :
+   [d,4,4,4,3] :
+   [d,d,d,5,3] :
+   [d,d,d,3] :
+   [d,d,4,3] :
+   [d,d,3] :
+   [d,4,3] :
+   [d,3] :
+   [d,4,4,3] :   -- only for "the nineteen"
    []
+   where d = drawCode
+
+--  This allows comparisons with max.
+drawCode :: Depth
+drawCode = maxBound
 
 --  The 19 exceptional positions for 4 queens.
 --  (An ending outcome that doesn't occur with 5 queens.)
@@ -70,7 +76,7 @@ theNineteen =
 
 --  Diagonal flip; row/column swap.
 dflip :: Square -> Square
-dflip  sq = (sq.&.0o7)`shiftL`3 .|. sq`shiftR`3
+dflip sq = (sq.&.0o7)`shiftL`3 .|. sq`shiftR`3
 
 --  Places a king might go, not considering rest of board.
 kingMoves :: Square -> [Square]
@@ -84,28 +90,20 @@ kingMoves sq = let
    [ sq' | a <- f n1, b <- f n2, let sq' = a + b*8, sq /= sq' ]
 
 --  Use symmetries to get into "normal" position, lexicographically least in
---  D_4 orbit.
-normalize :: [Square] -> [Square]
-normalize sqs@(whk:_) = llq `min` map dflip llq where
+--  D_4 orbit, with queens in increasing order.
+normalize :: [[Square]] -> [[Square]]
+normalize sqs@((whk:_):_) = map (sort . map dflip) llq `min` map sort llq where
    mask = (if whk > 31 then 0o70 else 0) .|. (if whk .&. 0o7 > 3 then 0o7 else 0)
-   --  Lower-left quadrant.
-   llq = map (xor mask) sqs
+   llq = map (map (xor mask)) sqs  -- lower-left quadrant
 
---  Easier to work with this than an Ord wrapper.
---  (Other option: have 0xff or whatever code draw.)
-max0 :: (Ord a, Num a) => a -> a -> a
-max0 0 x = 0
-max0 x 0 = 0
-max0 x y = max x y
-
---  Like zipWith max0 but if one list is shorter it continues
+--  Like zipWith max but if one list is shorter it continues
 --  with that list's last element.
 pcMerge :: [Depth] -> [Depth] -> [Depth]
 pcMerge l1@(h1:_) l2@(h2:_) = go h1 h2 l1 l2 where
    go _ _  [] [] = []
-   go _ h2 l1 [] = map (max0 h2) l1
-   go h1 _ [] l2 = map (max0 h1) l2
-   go _ _ (a:l1) (b:l2) = max0 a b : go a b l1 l2
+   go _ h2 l1 [] = map (max h2) l1
+   go h1 _ [] l2 = map (max h1) l2
+   go _ _ (a:l1) (b:l2) = max a b : go a b l1 l2
 pcMerge _ _ = error "pcMerge: empty list"
 
 --  Human-readable DTM50.
@@ -117,8 +115,24 @@ showDTM50 win pcl = concat $ intersperse ", " $ reverse $ go' 99 $ group pcl whe
    go' pc [g] = go pc 0 g : []
    go' pc [] = "illegal position" : []
    go pc2 pc1 (d:_) =
-      (if d==0 then "draw" else "mate" ++ (guard (not win) >> "d") ++ " in " ++ show d)
-         ++ " for PC=" ++ show pc1 ++ (guard (pc2>pc1) >> ".." ++ show pc2)
+      showValue win d ++ " for PC="
+         ++ show pc1 ++ (guard (pc2>pc1) >> ".." ++ show pc2)
+
+--  Show outcome at a particular PC.
+showValue :: Bool -> Depth -> String
+showValue win dp =
+   if dp==drawCode
+      then "draw" 
+      else "mate" ++ (guard (not win) >> "d") ++ " in " ++ show dp
+
+--  Dispatch based on maybe PC.
+--  These names could be improved.
+showOutcome :: Maybe Int -> Bool -> [Depth] -> String
+showOutcome Nothing   = showDTM50
+showOutcome (Just 100) = \ _ outc ->
+      if null outc then "illegal position" else "drawn (by fifty-move rule)"
+showOutcome (Just pc)  = \ win outc ->
+      showValue win $ head $ drop (99-pc) outc ++ last outc : []
 
 --  These are what they say on the tin.
 --  Could do this with a real parser but doesn't seem worth it.
@@ -133,7 +147,7 @@ readSquares bs =
    map readSquare $ take (BS.length bs `div` 2) $ unfoldr (Just . BS.splitAt 2) bs
 
 --  Compress list of increasing Squares into unique Int.
-triangle, triangle' :: [Square] -> Int
+triangle , triangle' :: [Square] -> Int
 triangle l =
    sum [ product [x-i .. x] `div` product [1..i+1]
          | (i, x') <- zip [0..] l, let x = fromIntegral x' ]
@@ -141,7 +155,7 @@ triangle l =
 --  Tables were generated in above order; this flips it around to be in
 --  lexicographic order, to make life harder for myself for no reason.
 --  The constant is 64 choose 5 - 1
-triangle' l = 7624511 - triangle (reverse $ map (0o77-) l)
+triangle' l = 7624511 - triangle (reverse $ map (63-) l)
 
 --  I use an array in the generator for speed, but here it's used once.
 kingcon :: Square -> Int
@@ -176,49 +190,55 @@ queryBlock block whkc sym blk =
 --  Mega-function for dispatching all possible inputs.
 process :: Handle -> BS.ByteString -> IO String
 process fh bs = do
-   let squares@(whk : rest) = normalize $ readSquares bs
-   let whkc = kingcon whk
+   let (mpc, squares) = (fst <$> r, readSquares $ maybe bs snd r)
+         where r = BSC.readInt bs
+   let shower = showOutcome mpc
    let col = BSC.last bs
    --  Wonky but functional indentation.
    --  Not using MultiWayIf since too new....
-   if even (BS.length bs) || any (\x -> x<0 || x>0o77) squares
+   if any (\x -> x<0 || x>63) squares
    then return "parse failure"
+   else if maybe False (\pc -> pc<0 || pc>100) mpc
+   then return "invalid PC"
    else if nub squares /= squares
    then return "illegal position (duplicate square)"
    else case length squares of
       6 | col == 'b' ->
-         return "sorry, four queens with Black to move not supported"
+         return "sorry, four queens with Black to move not available"
         | col == 'w' -> do
-         let (tri, blk) = (triangle' $ sort rest, last rest)
+         let (whk:_) : whqs : (blk:_) : [] =
+               normalize $ let h:t = squares in [h] : t : [last t] : []
+         let whkc = kingcon whk
+         let tri = triangle' whqs
          if (whkc, tri, blk) `elem` theNineteen
-            then return $ showDTM50 True $ outcomes ! 16
+            then return $ shower True $ outcomes ! 16
             else do
                block <- getBlock fh tri
-               return $ showDTM50 True $ queryBlock block whkc False blk
+               return $ shower True $ queryBlock block whkc False blk
       7 | col `elem` "bw" -> do
-         let (whqs', blk:_) = splitAt 5 rest
-         let whqs = sort whqs'
+         let (whk:_) : whqs : (blk:_) : [] =
+               normalize $ let h:t = squares in [h] : init t : [last t] : []
+         let whkc = kingcon whk
          block <- getBlock fh (triangle' whqs)
          let query' = queryBlock block whkc
          if col == 'w'
-            then return $ showDTM50 True $ query' False blk
+            then return $ shower True $ query' False blk
             else let
                sym = whk == dflip whk && whqs == sort (map dflip whqs)
                query = query' sym
                blks = kingMoves blk
-               moves =
-                  [ (blk', v) | blk' <- blks, let v = query blk', v /= [] ]
+               moves = [ (blk', v) | blk' <- blks, v@(_:_) <- [query blk'] ]
                in case (query blk, moves) of
                   _  | whk `elem` blks
                            -> return "illegal position"
                   ([], []) -> return "checkmated"
-                  (_,  []) -> return "draw (stalemate)"
+                  (_,  []) -> return "drawn (stalemate)"
                   _        ->
-                     return $ showDTM50 False $
+                     return $ shower False $
                         foldl1 pcMerge [
                            if blk' `elem` whqs  -- capture?
                               then last v : []
-                              else 0 : v
+                              else drawCode : v
                            | (blk', v) <- moves ]
       _ -> return "invalid input"
 
@@ -229,7 +249,7 @@ main = do
       exitFailure
    --  Some tolerance for extraneous characters, spaces, etc.
    --  (Not Unicode though.)
-   let pos = BS.take 15 $ BSC.filter (`elem`"abcdefgh12345678w") $ BS.concat args
+   let pos = BSC.filter (`elem`"abcdefgh1234567890w-") $ BS.concat args
    fh <- openFile "fivequeens.gt1" ReadMode
    putStrLn =<< process fh pos
    hClose fh
